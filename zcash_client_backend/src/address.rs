@@ -35,6 +35,13 @@ impl AddressMetadata {
     }
 }
 
+pub enum ReceiverType {
+    P2pkh,
+    // P2sh,
+    Sapling,
+    Orchard,
+}
+
 /// A Unified Address.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UnifiedAddress {

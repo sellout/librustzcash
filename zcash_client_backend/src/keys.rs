@@ -494,15 +494,20 @@ impl UnifiedFullViewingKey {
     ///
     /// Returns `None` if the specified index does not produce a valid diversifier.
     // TODO: Allow filtering down by receiver types?
-    pub fn address(&self, j: DiversifierIndex) -> Option<UnifiedAddress> {
-        let sapling = if let Some(extfvk) = self.sapling.as_ref() {
-            Some(extfvk.address(j)?)
-        } else {
-            None
+    pub fn address(&self, j: DiversifierIndex, receiver_types: BTreeSet<ReceiverType>) -> Option<UnifiedAddress> {
+        let orchard = match self.orchard.as_ref() {
+            Some(fvk) if receiver_types.contains(ReceiverType::Orchard) => Some(fvk.address_at(j, Scope::External)?),
+            _ => None,
+        };
+
+        let sapling = match self.sapling.as_ref() {
+            Some(extfvk) if receiver_types.contains(ReceiverType::Sapling) => Some(extfvk.address(j)?),
+            _ => None,
         };
 
         #[cfg(feature = "transparent-inputs")]
-        let transparent = if let Some(tfvk) = self.transparent.as_ref() {
+        let transparent = match self.transparent.as_ref() {
+            Some(tfvk) if receiver_types.contains(ReceiverType::P2pkh) =>
             match to_transparent_child_index(j) {
                 Some(transparent_j) => match tfvk
                     .derive_external_ivk()
@@ -513,14 +518,13 @@ impl UnifiedFullViewingKey {
                 },
                 // Diversifier doesn't generate a valid transparent child index.
                 None => return None,
-            }
-        } else {
-            None
+            },
+            _ => None,
         };
         #[cfg(not(feature = "transparent-inputs"))]
         let transparent = None;
 
-        UnifiedAddress::from_receivers(None, sapling, transparent)
+        UnifiedAddress::from_receivers(orchard, sapling, transparent)
     }
 
     /// Searches the diversifier space starting at diversifier index `j` for one which will
@@ -531,6 +535,7 @@ impl UnifiedFullViewingKey {
     pub fn find_address(
         &self,
         mut j: DiversifierIndex,
+        receiver_types: BTreeSet<ReceiverType>,
     ) -> Option<(UnifiedAddress, DiversifierIndex)> {
         // If we need to generate a transparent receiver, check that the user has not
         // specified an invalid transparent child index, from which we can never search to
@@ -542,7 +547,7 @@ impl UnifiedFullViewingKey {
 
         // Find a working diversifier and construct the associated address.
         loop {
-            let res = self.address(j);
+            let res = self.address(j, receiver_types);
             if let Some(ua) = res {
                 break Some((ua, j));
             }
@@ -554,8 +559,8 @@ impl UnifiedFullViewingKey {
 
     /// Returns the Unified Address corresponding to the smallest valid diversifier index,
     /// along with that index.
-    pub fn default_address(&self) -> (UnifiedAddress, DiversifierIndex) {
-        self.find_address(DiversifierIndex::new())
+    pub fn default_address(&self, receiver_types: BTreeSet<ReceiverType>) -> (UnifiedAddress, DiversifierIndex) {
+        self.find_address(DiversifierIndex::new(), receiver_types)
             .expect("UFVK should have at least one valid diversifier")
     }
 }
