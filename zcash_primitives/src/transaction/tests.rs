@@ -4,10 +4,12 @@ use core::ops::Deref;
 
 use proptest::prelude::*;
 
-use ::transparent::{
-    address::Script, sighash::SighashType, sighash::TransparentAuthorizingContext,
-};
+use ::transparent::sighash::{SighashType, TransparentAuthorizingContext};
 use zcash_protocol::{consensus::BranchId, value::Zatoshis};
+use zcash_script::{
+    opcode::Opcode,
+    script::{self, Parsable},
+};
 
 use super::{
     sighash::SignableInput,
@@ -133,13 +135,16 @@ mod data;
 fn zip_0143() {
     for tv in self::data::zip_0143::make_test_vectors() {
         let tx = Transaction::read(&tv.tx[..], tv.consensus_branch_id).unwrap();
+        let script_code = &script::PubKey::from_bytes(&tv.script_code)
+            .expect("valid script_pubkey")
+            .0;
         let signable_input = match tv.transparent_input {
             Some(n) => {
                 SignableInput::Transparent(::transparent::sighash::SignableInput::from_parts(
                     SighashType::parse(tv.hash_type as u8).unwrap(),
                     n as usize,
-                    &tv.script_code,
-                    &tv.script_code,
+                    &script_code,
+                    &script_code,
                     Zatoshis::from_nonnegative_i64(tv.amount).unwrap(),
                 ))
             }
@@ -157,13 +162,16 @@ fn zip_0143() {
 fn zip_0243() {
     for tv in self::data::zip_0243::make_test_vectors() {
         let tx = Transaction::read(&tv.tx[..], tv.consensus_branch_id).unwrap();
+        let script_code = &script::PubKey::from_bytes(&tv.script_code)
+            .expect("valid_pubkey")
+            .0;
         let signable_input = match tv.transparent_input {
             Some(n) => {
                 SignableInput::Transparent(::transparent::sighash::SignableInput::from_parts(
                     SighashType::parse(tv.hash_type as u8).unwrap(),
                     n as usize,
-                    &tv.script_code,
-                    &tv.script_code,
+                    &script_code,
+                    &script_code,
                     Zatoshis::from_nonnegative_i64(tv.amount).unwrap(),
                 ))
             }
@@ -180,11 +188,11 @@ fn zip_0243() {
 #[derive(Debug)]
 struct TestTransparentAuth {
     input_amounts: Vec<Zatoshis>,
-    input_scriptpubkeys: Vec<Script>,
+    input_scriptpubkeys: Vec<script::PubKey>,
 }
 
 impl transparent::Authorization for TestTransparentAuth {
-    type ScriptSig = Script;
+    type ScriptSig = script::Sig<Opcode>;
 }
 
 impl TransparentAuthorizingContext for TestTransparentAuth {
@@ -192,7 +200,7 @@ impl TransparentAuthorizingContext for TestTransparentAuth {
         self.input_amounts.clone()
     }
 
-    fn input_scriptpubkeys(&self) -> Vec<Script> {
+    fn input_scriptpubkeys(&self) -> Vec<script::PubKey> {
         self.input_scriptpubkeys.clone()
     }
 }
@@ -228,7 +236,7 @@ fn zip_0244() {
         let input_scriptpubkeys = tv
             .script_pubkeys
             .iter()
-            .map(|s| Script(s.clone()))
+            .map(|s| script::PubKey::from_bytes(s).expect("valid script").0)
             .collect();
 
         let test_bundle = txdata
