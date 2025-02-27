@@ -135,16 +135,13 @@ mod data;
 fn zip_0143() {
     for tv in self::data::zip_0143::make_test_vectors() {
         let tx = Transaction::read(&tv.tx[..], tv.consensus_branch_id).unwrap();
-        let script_code = &script::PubKey::from_bytes(&tv.script_code)
-            .expect("valid script_pubkey")
-            .0;
         let signable_input = match tv.transparent_input {
             Some(n) => {
                 SignableInput::Transparent(::transparent::sighash::SignableInput::from_parts(
                     SighashType::parse(tv.hash_type as u8).unwrap(),
                     n as usize,
-                    &script_code,
-                    &script_code,
+                    &tv.script_code,
+                    &tv.script_code,
                     Zatoshis::from_nonnegative_i64(tv.amount).unwrap(),
                 ))
             }
@@ -162,16 +159,13 @@ fn zip_0143() {
 fn zip_0243() {
     for tv in self::data::zip_0243::make_test_vectors() {
         let tx = Transaction::read(&tv.tx[..], tv.consensus_branch_id).unwrap();
-        let script_code = &script::PubKey::from_bytes(&tv.script_code)
-            .expect("valid_pubkey")
-            .0;
         let signable_input = match tv.transparent_input {
             Some(n) => {
                 SignableInput::Transparent(::transparent::sighash::SignableInput::from_parts(
                     SighashType::parse(tv.hash_type as u8).unwrap(),
                     n as usize,
-                    &script_code,
-                    &script_code,
+                    &tv.script_code,
+                    &tv.script_code,
                     Zatoshis::from_nonnegative_i64(tv.amount).unwrap(),
                 ))
             }
